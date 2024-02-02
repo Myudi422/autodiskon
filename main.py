@@ -5,14 +5,47 @@ from datetime import datetime, timezone
 import time
 import mysql.connector
 import logging
+import random
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
+# Map channel URLs to names
+channel_mapping = {
+    'https://t.me/s/RACUN_SHOPEE_DISKON_PROMO_RECEH': 'Shopee',
+    'https://t.me/s/RACUN_LAZADA_DISKON_PROMO_MURAH': 'Lazada',
+    'https://t.me/s/racun_tokopedia_tokped': 'Tokopedia',
+}
+
 # Function to save data to MySQL database
-def save_to_database(image_url, caption, channel):
-    if not image_url or not caption:
-        logging.warning("Image URL or Caption is empty. Data not saved to the database.")
+def save_to_database(image_url, caption, channel_url):
+    if not image_url:
+        logging.warning("Image URL is empty. Data not saved to the database.")
+        return
+
+    # Extract platform_link from caption using regular expression
+    platform_link_match = re.search(r'(https?://[^\s]+)', caption)
+    platform_link = platform_link_match.group(1) if platform_link_match else None
+
+    # Remove platform_link from caption if found
+    caption = re.sub(r'(https?://[^\s]+)', '', caption).strip()
+
+    # Use a random default caption if it is empty
+    if not caption:
+        default_captions = [
+            "🌟 Jangan Sampai Ketinggalan!! 🌟",
+            "🎉 Segera Dapatkan Diskon Spesial! 🎉",
+            "⏰ Jangan Lewatkan Kesempatan Ini! ⏰",
+            "✨ Gas Order!! ✨",
+        ]
+        caption = random.choice(default_captions)
+
+    # Get the channel name from the mapping
+    channel_name = channel_mapping.get(channel_url)
+
+    if not channel_name:
+        logging.warning("Channel URL not found in the mapping. Data not saved to the database.")
         return
 
     # Replace with your MySQL database connection details
@@ -21,7 +54,7 @@ def save_to_database(image_url, caption, channel):
         'user': 'diskon',
         'password': 'aaaaaaac',
         'database': 'diskon',
-        'charset': 'utf8mb4',  # Tambahkan pengaturan karakter set utf8mb4
+        'charset': 'utf8mb4',
         'collation': 'utf8mb4_unicode_ci',
     }
 
@@ -32,11 +65,12 @@ def save_to_database(image_url, caption, channel):
 
         # Check for duplicate entries based on the image URL and channel
         query_check_duplicate = "SELECT * FROM posts WHERE image_link = %s AND channel = %s"
-        cursor.execute(query_check_duplicate, (image_url, channel))
+        cursor.execute(query_check_duplicate, (image_url, channel_name))
+        
         if not cursor.fetchall():
             # If no duplicates, save data to the database
-            query_insert = "INSERT INTO posts (image_link, caption, channel) VALUES (%s, %s, %s)"
-            data_insert = (image_url, caption, channel)
+            query_insert = "INSERT INTO posts (image_link, caption, platform_link, channel) VALUES (%s, %s, %s, %s)"
+            data_insert = (image_url, caption, platform_link, channel_name)
             cursor.execute(query_insert, data_insert)
             connection.commit()
             logging.info("Data successfully saved to the database!")
@@ -52,8 +86,10 @@ def save_to_database(image_url, caption, channel):
             cursor.close()
             connection.close()
 
+
+
 # List of Telegram channel URLs
-channel_urls = ['https://t.me/s/racuntest', 'https://t.me/s/downloadanimebatch']
+channel_urls = ['https://t.me/s/RACUN_SHOPEE_DISKON_PROMO_RECEH', 'https://t.me/s/RACUN_LAZADA_DISKON_PROMO_MURAH', "https://t.me/s/racun_tokopedia_tokped"]
 
 while True:
     for url in channel_urls:
