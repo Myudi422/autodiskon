@@ -87,7 +87,7 @@ def save_to_database(image_url, caption, channel_url):
 
             # Kirim notifikasi push ke setiap FCM token
             for fcm_token in fcm_tokens:
-                send_push_notification(fcm_token, "Ada Promo Baru!", caption)
+                send_push_notification(fcm_token, "Ada Promo Baru!", channel_name, caption, image_url_xpath_result)
         else:
             logging.info("Data already exists in the database. Not saved.")
 
@@ -101,13 +101,31 @@ def save_to_database(image_url, caption, channel_url):
             connection.close()
 
 # Function untuk mengirim notifikasi push ke FCM token
-def send_push_notification(fcm_token, title, body):
+def send_push_notification(fcm_token, title, channel, body, image_link):
+    full_title = f"{title} - {channel}"
+    
     message = messaging.Message(
         notification=messaging.Notification(
-            title=title,
+            title=full_title,
             body=body,
         ),
         token=fcm_token,
+        android=messaging.AndroidConfig(
+            notification=messaging.AndroidNotification(
+                image=image_link,
+            ),
+        ),
+        apns=messaging.APNSConfig(
+            payload=messaging.APNSPayload(
+                aps=messaging.Aps(
+                    alert=messaging.ApsAlert(
+                        title=full_title,
+                        body=body,
+                    ),
+                    mutable_content=True,
+                ),
+            ),
+        ),
     )
 
     try:
@@ -115,6 +133,7 @@ def send_push_notification(fcm_token, title, body):
         logging.info("Successfully sent push notification to FCM token:", fcm_token)
     except Exception as e:
         logging.error("Error sending push notification:", e)
+
 
 
 # List of Telegram channel URLs
