@@ -33,7 +33,6 @@ def insert_promo_data(merchant_id, image_url, title, claim_link, valid_from_date
             cursor.close()
             connection.close()
 
-
 def check_duplicate_data(cursor, claim_link):
     cursor.execute("SELECT COUNT(*) FROM promo WHERE visit_link = %s", (claim_link,))
     result = cursor.fetchone()
@@ -45,13 +44,19 @@ def scrape_and_insert_data(merchant_id, url):
     if response.status_code == 200:
         soup = BeautifulSoup(response.content, 'html.parser')
 
+        if merchant_id == 'epicgames':
+            # Update XPath for Epic Games
+            claim_element = soup.select_one('div.flex.justify-between.items-center.mt-4 a')
+        else:
+            # For other merchants, use the existing XPath
+            claim_element = soup.select_one('.flex-1 a')
+
         image_element = soup.select_one('.flex.bg-white.rounded-lg.shadow-md.p-6.mb-8 img')
         image_url = image_element['src'] if image_element else None
 
         title_element = soup.select_one('.flex-1 h3')
         title = title_element.text.strip() if title_element else None
 
-        claim_element = soup.select_one('.flex-1 a')
         claim_link = claim_element['href'] if claim_element else None
 
         valid_from_element = soup.select_one('span.text-sm')
